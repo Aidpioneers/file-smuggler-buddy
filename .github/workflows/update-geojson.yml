@@ -8,10 +8,11 @@ on:
   # Allow manual triggering
   workflow_dispatch:
   
-  # Run when marathons.ts is updated
+  # Run when marathon scripts are updated
   push:
     paths:
-      - 'src/data/marathons.ts'
+      - 'scripts/update-marathon-data.py'
+      - 'scripts/run-marathon-update.sh'
 
 jobs:
   update-geojson:
@@ -20,14 +21,15 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+       - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          node-version: '18'
+          python-version: '3.x'
           
-      - name: Convert to GeoJSON
-        run: node scripts/convert-to-geojson.js
+       - name: Update Marathon Data
+        run: |
+          chmod +x scripts/run-marathon-update.sh
+          ./scripts/run-marathon-update.sh
         
       - name: Check for changes
         id: verify-changed-files
