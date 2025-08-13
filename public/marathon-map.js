@@ -1,6 +1,12 @@
 /*****************************************************************
-  0 · HELPERS
+  0 · HELPERS & IMPORTS
 *****************************************************************/
+
+// Import NoUISlider CSS and JS
+const nouisliderCSS = document.createElement('link');
+nouisliderCSS.rel = 'stylesheet';
+nouisliderCSS.href = 'https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.css';
+document.head.appendChild(nouisliderCSS);
 const isMobile = () => window.matchMedia('(max-width:500px)').matches;
 
 function makeToggle(ctrl, icon){
@@ -111,33 +117,37 @@ const GEOJSON_URL = 'https://raw.githubusercontent.com/Aidpioneers/file-smuggler
 const markers = [];
 let hoverPopup = null;
 let marathonLandingPageLink = null;
+let dateRangeSlider = null;
 
-// Dynamic country detection from actual data
-function getAvailableCountries(marathonType = 'ALL', year = 'ALL') {
-  const countries = new Set();
+// Dynamic city detection from actual data
+function getAvailableCities(marathonType = 'ALL') {
+  const cities = new Set();
   
   markers.forEach(marker => {
     const typeMatch = (marathonType === 'ALL') || (marker.marathonType === marathonType);
-    const yearMatch = (year === 'ALL') || (marker.year === year);
     
-    if (typeMatch && yearMatch) {
-      countries.add(marker.country);
+    if (typeMatch && marker.city) {
+      cities.add(marker.city);
     }
   });
   
-  // Sort by country names alphabetically
-  return Array.from(countries).sort();
+  // Sort by city names alphabetically
+  return Array.from(cities).sort();
 }
 
-// Function to get available years from marathon data
-function getAvailableYears() {
-  const years = new Set();
-  markers.forEach(marker => {
-    if (marker.year) {
-      years.add(marker.year);
-    }
-  });
-  return Array.from(years).sort();
+// Function to parse date from marathon data
+function parseMarathonDate(dateString) {
+  if (!dateString) return null;
+  
+  // Parse DD/MM/YYYY format
+  const parts = dateString.split('/');
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+    const year = parseInt(parts[2], 10);
+    return new Date(year, month, day);
+  }
+  return null;
 }
 
 /*****************************************************************
@@ -152,7 +162,12 @@ class SummaryBox{
 }
 
 class FiltersCard{
-  constructor(){this.marathonType='ALL'; this.selectedCountry='ALL'; this.selectedYear='ALL';}
+  constructor(){
+    this.marathonType='ALL'; 
+    this.selectedCity='ALL'; 
+    this.selectedMonthRange=[0, 11]; // January to December
+  }
+  
   onAdd(){
     const d=document.createElement('div');
     d.className='mapboxgl-ctrl info-box';
@@ -163,16 +178,16 @@ class FiltersCard{
         <button class="dist-btn"            data-type="Half Marathon">Half</button>
       </div>
       <div style="margin-top:10px;">
-        <label style="color:#fff;font-size:12px;margin-bottom:4px;display:block;">Select Country:</label>
-        <select id="country-dropdown" class="country-dropdown">
-          <option value="ALL">All Countries</option>
+        <label style="color:#fff;font-size:12px;margin-bottom:4px;display:block;">Select City:</label>
+        <select id="city-dropdown" class="city-dropdown">
+          <option value="ALL">All Cities</option>
         </select>
       </div>
       <div style="margin-top:10px;">
-        <label style="color:#fff;font-size:12px;margin-bottom:4px;display:block;">Select Year:</label>
-        <select id="year-dropdown" class="country-dropdown">
-          <option value="ALL">All Years</option>
-        </select>
+        <label id="rangeLabel" style="color:#fff;font-size:12px;margin-bottom:4px;display:block;">Date Range: All Year</label>
+        <div id="rangeWrap">
+          <div id="dateSlider"></div>
+        </div>
       </div>
       <div id="marathon-landing-btn" style="margin-top:10px;">
         <button class="dist-btn landing-page-btn" onclick="openMarathonLandingPage()">View Marathon Page</button>
@@ -183,76 +198,95 @@ class FiltersCard{
       btn.onclick = _=>{
         d.querySelectorAll('.dist-btn:not(.landing-page-btn)').forEach(b=>b.classList.toggle('is-active',b===btn));
         this.marathonType = btn.dataset.type;
-        this.updateCountryDropdown();
-        this.updateYearDropdown();
+        this.updateCityDropdown();
         apply();
       };
     });
     
-    // Handle country dropdown
-    const dropdown = d.querySelector('#country-dropdown');
+    // Handle city dropdown
+    const dropdown = d.querySelector('#city-dropdown');
     dropdown.onchange = _=>{
-      this.selectedCountry = dropdown.value;
+      this.selectedCity = dropdown.value;
       apply();
     };
     
-    // Handle year dropdown
-    const yearDropdown = d.querySelector('#year-dropdown');
-    yearDropdown.onchange = _=>{
-      this.selectedYear = yearDropdown.value;
-      this.updateCountryDropdown();
-      apply();
-    };
+    // Initialize date range slider
+    this.initDateSlider(d);
     
     return(this._div=d);
   }
   
-  updateCountryDropdown(){
-    const dropdown = this._div.querySelector('#country-dropdown');
-    if (!dropdown) return;
+  async initDateSlider(container) {
+    // Wait for NoUISlider to load
+    while (typeof noUiSlider === 'undefined') {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
     
-    // Get available countries based on current filters
-    const availableCountries = getAvailableCountries(this.marathonType, this.selectedYear);
+    const slider = container.querySelector('#dateSlider');
+    const label = container.querySelector('#rangeLabel');
     
-    // Clear current options
-    dropdown.innerHTML = '<option value="ALL">All Countries</option>';
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
     
-    // Add filtered country options
-    availableCountries.forEach(country => {
-      const option = document.createElement('option');
-      option.value = country;
-      option.textContent = country;
-      dropdown.appendChild(option);
+    dateRangeSlider = noUiSlider.create(slider, {
+      start: [0, 11],
+      connect: true,
+      range: {
+        'min': 0,
+        'max': 11
+      },
+      step: 1,
+      format: {
+        to: function (value) {
+          return Math.round(value);
+        },
+        from: function (value) {
+          return Number(value);
+        }
+      }
     });
     
-    // Check if current selection is still valid
-    if (this.selectedCountry !== 'ALL' && !availableCountries.includes(this.selectedCountry)) {
-      this.selectedCountry = 'ALL';
-      dropdown.value = 'ALL';
-    }
+    dateRangeSlider.on('update', (values) => {
+      const startMonth = parseInt(values[0]);
+      const endMonth = parseInt(values[1]);
+      
+      this.selectedMonthRange = [startMonth, endMonth];
+      
+      if (startMonth === 0 && endMonth === 11) {
+        label.textContent = 'Date Range: All Year';
+      } else if (startMonth === endMonth) {
+        label.textContent = `Date Range: ${monthNames[startMonth]}`;
+      } else {
+        label.textContent = `Date Range: ${monthNames[startMonth]} - ${monthNames[endMonth]}`;
+      }
+      
+      apply();
+    });
   }
   
-  updateYearDropdown(){
-    const dropdown = this._div.querySelector('#year-dropdown');
+  updateCityDropdown(){
+    const dropdown = this._div.querySelector('#city-dropdown');
     if (!dropdown) return;
     
-    // Get available years
-    const availableYears = getAvailableYears();
+    // Get available cities based on current filters
+    const availableCities = getAvailableCities(this.marathonType);
     
     // Clear current options
-    dropdown.innerHTML = '<option value="ALL">All Years</option>';
+    dropdown.innerHTML = '<option value="ALL">All Cities</option>';
     
-    // Add year options
-    availableYears.forEach(year => {
+    // Add filtered city options
+    availableCities.forEach(city => {
       const option = document.createElement('option');
-      option.value = year;
-      option.textContent = year;
+      option.value = city;
+      option.textContent = city;
       dropdown.appendChild(option);
     });
     
     // Check if current selection is still valid
-    if (this.selectedYear !== 'ALL' && !availableYears.includes(this.selectedYear)) {
-      this.selectedYear = 'ALL';
+    if (this.selectedCity !== 'ALL' && !availableCities.includes(this.selectedCity)) {
+      this.selectedCity = 'ALL';
       dropdown.value = 'ALL';
     }
   }
@@ -290,12 +324,17 @@ const filtersBox= new FiltersCard();
 
 map.on('load',()=>{
   map.resize();
-  // Load the marathon GeoJSON data
-  loadGeoJSONData().then(() => {
-    filtersBox.updateCountryDropdown();
-    filtersBox.updateYearDropdown();
-    apply();
-  });
+  // Load NoUISlider library
+  const script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.js';
+  script.onload = () => {
+    // Load the marathon GeoJSON data after NoUISlider is loaded
+    loadGeoJSONData().then(() => {
+      filtersBox.updateCityDropdown();
+      apply();
+    });
+  };
+  document.head.appendChild(script);
 });
 
 // Add zoom listener for marker scaling
@@ -408,13 +447,11 @@ function drawMarathon(props, coords){
   el.className = 'marker';
   el.style.width = el.style.height = `${rad*2}px`;
   
-  // Color based on status
-  if (status === 'Available') {
-    el.classList.add('available');
-  } else if (status === 'Sold Out') {
-    el.classList.add('sold-out');
-  } else if (status === 'Checking') {
-    el.classList.add('checking');
+  // Color based on marathon type
+  if (marathonType === 'Full Marathon') {
+    el.classList.add('full-marathon');
+  } else if (marathonType === 'Half Marathon') {
+    el.classList.add('half-marathon');
   }
 
   // Create popup content
@@ -436,14 +473,18 @@ function drawMarathon(props, coords){
   // Add hover functionality
   addHoverToMarker(el, marathonName, m);
 
+  // Parse the marathon date
+  const marathonDate = parseMarathonDate(date);
+
   markers.push({
     marker: m, 
     marathonType: marathonType,
-    country: country || city, // Use country if available, otherwise city
+    country: country,
+    city: city,
     year: year,
     name: marathonName,
-    city: city,
-    status: status
+    status: status,
+    date: marathonDate
   });
 }
 
@@ -451,15 +492,13 @@ function drawMarathon(props, coords){
   FILTER / SUMMARY
 *****************************************************************/
 function updateSummary(marathonType, cntShown) {
-  const selectedCountry = filtersBox.selectedCountry;
-  const selectedYear = filtersBox.selectedYear;
+  const selectedCity = filtersBox.selectedCity;
   
   let html = `<h4>Marathon Summary</h4><hr class="sep">`;
 
   // Add filters to header if specific selections are made
   let headerParts = [];
-  if (selectedCountry !== 'ALL') headerParts.push(selectedCountry);
-  if (selectedYear !== 'ALL') headerParts.push(selectedYear);
+  if (selectedCity !== 'ALL') headerParts.push(selectedCity);
   if (marathonType !== 'ALL') headerParts.push(marathonType);
   
   if (headerParts.length > 0) {
@@ -473,17 +512,14 @@ function updateSummary(marathonType, cntShown) {
   let availableMarathons = 0;
   let soldOutMarathons = 0;
   let checkingMarathons = 0;
-  let countries = new Set();
+  let cities = new Set();
 
   markers.forEach(marker => {
-    const countryMatch = (selectedCountry === 'ALL') || (marker.country === selectedCountry);
-    const yearMatch = (selectedYear === 'ALL') || (marker.year === selectedYear);
-    const typeMatch = (marathonType === 'ALL') || (marker.marathonType === marathonType);
     const isVisible = marker.marker.getElement().style.display !== 'none';
     
-    if (countryMatch && yearMatch && typeMatch && isVisible) {
+    if (isVisible) {
       totalMarathons++;
-      countries.add(marker.country);
+      cities.add(marker.city);
       
       if (marker.marathonType === 'Full Marathon') {
         fullMarathons++;
@@ -506,7 +542,7 @@ function updateSummary(marathonType, cntShown) {
     html += `<b>Full Marathons:</b> ${fullMarathons}<br>`;
     html += `<b>Half Marathons:</b> ${halfMarathons}<br>`;
   }
-  html += `<b>Countries:</b> ${countries.size}<br><br>`;
+  html += `<b>Cities:</b> ${cities.size}<br><br>`;
   html += `<b>Available:</b> ${availableMarathons}<br>`;
   html += `<b>Sold Out:</b> ${soldOutMarathons}<br>`;
   html += `<b>Checking:</b> ${checkingMarathons}`;
@@ -516,16 +552,30 @@ function updateSummary(marathonType, cntShown) {
 
 function apply(){
   const wantType = filtersBox.marathonType;
-  const wantCountry = filtersBox.selectedCountry;
-  const wantYear = filtersBox.selectedYear;
+  const wantCity = filtersBox.selectedCity;
+  const monthRange = filtersBox.selectedMonthRange;
   let shown = 0;
 
   markers.forEach(marker=>{
     const okType = (wantType==='ALL') || (marker.marathonType===wantType);
-    const okCountry = (wantCountry==='ALL') || (marker.country===wantCountry);
-    const okYear = (wantYear==='ALL') || (marker.year===wantYear);
+    const okCity = (wantCity==='ALL') || (marker.city===wantCity);
     
-    const show = okType && okCountry && okYear;
+    // Check if marathon date falls within selected month range
+    let okDate = true;
+    if (marker.date && monthRange) {
+      const marathonMonth = marker.date.getMonth();
+      const [startMonth, endMonth] = monthRange;
+      
+      if (startMonth <= endMonth) {
+        // Normal range (e.g., March to August)
+        okDate = marathonMonth >= startMonth && marathonMonth <= endMonth;
+      } else {
+        // Wrap-around range (e.g., November to February)
+        okDate = marathonMonth >= startMonth || marathonMonth <= endMonth;
+      }
+    }
+    
+    const show = okType && okCity && okDate;
     marker.marker.getElement().style.display = show ? '' : 'none';
     if(show){ shown++; }
   });
