@@ -277,7 +277,7 @@ mapboxgl.accessToken='pk.eyJ1IjoibGlsbHlzdHVyeiIsImEiOiJjbWR5am51MHIwMnJmMmxzYXN
 
 const map = new mapboxgl.Map({
   container:'map',
-  style:'mapbox://styles/mapbox/dark-v11', // Using a valid default Mapbox style
+  style:'mapbox://styles/lillysturz/cmdh7fgh6001201s855hrbbyd',
   center:[30.5,25], zoom:2.7, maxZoom:22, preserveDrawingBuffer:true
 });
 
