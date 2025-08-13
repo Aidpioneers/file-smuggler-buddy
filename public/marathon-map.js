@@ -310,8 +310,17 @@ window.addEventListener('resize',()=>map.resize());
 *****************************************************************/
 async function loadGeoJSONData(){
   try {
-    console.log('Loading marathon data from:', GEOJSON_URL);
-    const response = await fetch(`${GEOJSON_URL}?t=${Date.now()}`);
+    // Add more aggressive cache busting
+    const cacheBuster = `?v=${Date.now()}&rand=${Math.random()}`;
+    const fullUrl = GEOJSON_URL + cacheBuster;
+    console.log('Loading marathon data from:', fullUrl);
+    
+    const response = await fetch(fullUrl, {
+      cache: 'no-cache',
+      headers: {
+        'Cache-Control': 'no-cache'
+      }
+    });
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -319,6 +328,8 @@ async function loadGeoJSONData(){
     
     const geojsonData = await response.json();
     console.log('GeoJSON data loaded successfully:', geojsonData);
+    console.log('Number of features:', geojsonData.features?.length);
+    console.log('First feature:', geojsonData.features?.[0]);
     
     // Process each feature
     geojsonData.features.forEach(feature => {
