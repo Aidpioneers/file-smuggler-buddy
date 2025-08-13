@@ -110,7 +110,22 @@ body{margin:0}
   border-color:#c9086b;
 }
 
-/* dropdowns */
+/* landing page button */
+.dist-btn.landing-page-btn {
+  background: #E20074 !important;
+  border-color: #E20074 !important;
+  color: white !important;
+  width: 100%;
+  margin-top: 6px;
+  font-weight: 600;
+}
+
+.dist-btn.landing-page-btn:hover {
+  background: #c9086b !important;
+  border-color: #c9086b !important;
+}
+
+/* city dropdown */
 .city-dropdown {
   width: 100%;
   padding: 6px 8px;
@@ -129,6 +144,10 @@ body{margin:0}
   border-color: #ffffff;
 }
 
+.city-dropdown:hover {
+  border-color: #ffffff;
+}
+
 .city-dropdown option {
   color: #0F2C4C;
   background: #fff;
@@ -143,7 +162,7 @@ body{margin:0}
   font-size:13px;
   font-weight:600;
   color:#fff !important;
-  background:#E20074E6;          /* pink */
+  background:#E20074E6;
   border-radius:30px;
   text-decoration:none;
   transition:background .25s;
@@ -159,6 +178,7 @@ body{margin:0}
 
 /* MOBILE LAYOUT  ================== */
 @media(max-width:767px){
+  /* put cards off-canvas by default & slide in */
   .mapboxgl-ctrl.info-box,
   .mapboxgl-ctrl.summary-box{
     position:absolute !important;
@@ -169,19 +189,25 @@ body{margin:0}
   }
   .mapboxgl-ctrl.info-box.mobile-shown,
   .mapboxgl-ctrl.summary-box.mobile-shown{transform:none;}
+
+  /* hide toggle-btn on desktop */
   .mapboxgl-ctrl.toggle-btn{display:block;}
 }
 
+/* hide mobile toggle on desktop */
 @media(min-width:768px){
   .mapboxgl-ctrl.toggle-btn{display:none;}
 }
 
+/* map size & spacing on mobile */
 @media(max-width:767px){
+  /* container participates in normal flow now */
   #map{
     position:relative !important;
     height:80vh !important;
-    margin-bottom:5rem !important;
+    margin-bottom:5rem !important;  /* pushes following text away */
   }
+  /* the mapbox canvas stays absolute inside */
   #map> .mapboxgl-map{
     position:absolute;
     inset:0;
@@ -190,9 +216,12 @@ body{margin:0}
 
 /* GLOBAL MAP STYLING ======= */
 body{margin:0}
+
+/* wrapper ensures the map can occupy 100 % of viewport in fullscreen */
 #mapWrap{position:relative;height:100vh;}
 #map{position:absolute;inset:0;}   
 
+/* hide fixed site chrome when ANY element is fullscreen */
 :fullscreen header,
 :fullscreen nav,
 :fullscreen .site-header{display:none!important;}
