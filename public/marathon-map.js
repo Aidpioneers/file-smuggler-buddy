@@ -82,7 +82,7 @@ const stats = {
 /*****************************************************************
   GEOJSON URL
 *****************************************************************/
-const GEOJSON_URL = 'https://raw.githubusercontent.com/Aidpioneers/file-smuggler-buddy/main/public/marathons.geojson';
+const GEOJSON_URL = './marathons.geojson';
 
 /*****************************************************************
   GLOBALS

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marathon Map 2025 - Interactive Global Marathon Tracker</title>
+    <meta name="description" content="Interactive map showcasing available marathon spots worldwide for 2025. Explore marathons across Europe, America and beyond with real-time availability status." />
+    
+    <!-- Mapbox GL CSS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.14.0/mapbox-gl.css" rel="stylesheet" />
+    
+    <!-- Marathon Styles -->
+    <link rel="stylesheet" href="marathon-styles.css">
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        #map {
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #mapWrap {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+        }
+        
+        /* Ensure marker scaling works */
+        .marker {
+            transform: scale(var(--marker-scale, 1));
+            transition: transform 0.2s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="mapWrap">
+        <div id="map"></div>
+    </div>
+    
+    <!-- Mapbox GL JS -->
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.14.0/mapbox-gl.js"></script>
+    
+    <!-- Marathon Map Script -->
+    <script src="marathon-map.js"></script>
+</body>
+</html>
