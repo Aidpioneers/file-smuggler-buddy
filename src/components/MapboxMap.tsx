@@ -45,7 +45,7 @@ const MapboxMap: React.FC<MapboxMapProps> = ({ apiKey }) => {
     
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/dark-v11',
+      style: 'mapbox://styles/lillysturz/cmdh7fgh6001201s855hrbbyd',
       center: [4.9041, 52.3676], // Amsterdam center
       zoom: 4,
       pitch: 45,
