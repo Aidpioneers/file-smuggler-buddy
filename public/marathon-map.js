@@ -1,12 +1,6 @@
 /*****************************************************************
-  0 · HELPERS & IMPORTS
+  0 · HELPERS
 *****************************************************************/
-
-// Import NoUISlider CSS and JS
-const nouisliderCSS = document.createElement('link');
-nouisliderCSS.rel = 'stylesheet';
-nouisliderCSS.href = 'https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.css';
-document.head.appendChild(nouisliderCSS);
 const isMobile = () => window.matchMedia('(max-width:500px)').matches;
 
 function makeToggle(ctrl, icon){
@@ -25,32 +19,6 @@ function makeToggle(ctrl, icon){
 function sizeRadius(v){
   return v<5?4 : v<20?9 : v<50?10 : v<100?12 : v<200?6 : v<400?6 : 6;
 }
-
-function embedPhoto(blob){
-  if(!blob) return '';
-  const url = blob.split(',')[0].trim();
-  const id  = url.match(/\/file\/d\/([^/]+)/)?.[1];
-  const src = id ? `https://lh3.googleusercontent.com/d/${id}=w1600` : url;
-  return `<div style="aspect-ratio:16/9;width:100%;margin-top:6px;border-radius:6px;overflow:hidden">
-            <img src="${src}" style="width:100%;height:100%;object-fit:cover;border:0;">
-          </div>`;
-}
-
-function prettyMonthYear(s){
-  if(!s) return s;
-  const [mon, yy] = s.split('-');
-  const monthNames = {
-    Jan:'January', Feb:'February', Mar:'March', Apr:'April', May:'May', Jun:'June',
-    Jul:'July', Aug:'August', Sep:'September', Oct:'October', Nov:'November', Dec:'December'
-  };
-  const longMonth = monthNames[mon] || mon;
-  return `${longMonth} 20${yy}`;
-}
-
-const clean = s => (s||'')
-                   .replace(/[^\p{L}\s]/gu, '')
-                   .toLowerCase()
-                   .trim();
 
 // Function to decode HTML entities and fix character encoding
 function decodeText(text) {
@@ -89,22 +57,27 @@ function updateMarkerSizes() {
   document.documentElement.style.setProperty('--marker-scale', scale);
 }
 
+// Function to parse date from marathon data
+function parseMarathonDate(dateString) {
+  if (!dateString) return null;
+  
+  // Parse DD/MM/YYYY format
+  const parts = dateString.split('/');
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+    const year = parseInt(parts[2], 10);
+    return new Date(year, month, day);
+  }
+  return null;
+}
+
 /*****************************************************************
   STATS
 *****************************************************************/
 const stats = {
-  marathons: {cnt:0, fullMarathons:0, halfMarathons:0, countries:0},
+  marathons: {cnt:0, fullMarathons:0, halfMarathons:0},
 };
-
-function parseNum(raw){
-  if(!raw) return 0;
-  return parseFloat(
-           String(raw)
-           .replace(/[^\d.,-]/g,'')
-           .replace(/\./g,'')
-           .replace(',', '.')
-         ) || 0;
-}
 
 /*****************************************************************
   GEOJSON URL
@@ -118,6 +91,12 @@ const markers = [];
 let hoverPopup = null;
 let marathonLandingPageLink = null;
 let dateRangeSlider = null;
+
+// Import NoUISlider CSS and JS
+const nouisliderCSS = document.createElement('link');
+nouisliderCSS.rel = 'stylesheet';
+nouisliderCSS.href = 'https://cdn.jsdelivr.net/npm/nouislider@15.8.1/dist/nouislider.min.css';
+document.head.appendChild(nouisliderCSS);
 
 // Dynamic city detection from actual data
 function getAvailableCities(marathonType = 'ALL') {
@@ -133,21 +112,6 @@ function getAvailableCities(marathonType = 'ALL') {
   
   // Sort by city names alphabetically
   return Array.from(cities).sort();
-}
-
-// Function to parse date from marathon data
-function parseMarathonDate(dateString) {
-  if (!dateString) return null;
-  
-  // Parse DD/MM/YYYY format
-  const parts = dateString.split('/');
-  if (parts.length === 3) {
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
-    const year = parseInt(parts[2], 10);
-    return new Date(year, month, day);
-  }
-  return null;
 }
 
 /*****************************************************************
@@ -294,14 +258,13 @@ class FiltersCard{
   onRemove(){this._div.remove();}
 }
 
-/***** 2 · INFO CARD *************************************************/
 class InfoBox{
   onAdd(){
     const d=document.createElement('div');
     d.className='mapboxgl-ctrl info-box';
-    d.innerHTML=`<h4>Marathon Map</h4><hr class="sep">
-      <p>Interactive overview of marathons worldwide.</p>
-     <p>Hover for the name, click for full details. Filter by marathon type, country, or year.</p>`;
+    d.innerHTML=`<h4>Aid Pioneers · Marathon Registration</h4><hr class="sep">
+      <p>Interactive overview of all marathon registrations by <b>Aid Pioneers</b>.</p>
+     <p>Hover for the name, click for full details. Filter by marathon type and location.</p>`;
     return (this._div=d);
   }
   onRemove(){this._div.remove();}
@@ -347,7 +310,7 @@ window.addEventListener('resize',()=>map.resize());
 *****************************************************************/
 async function loadGeoJSONData(){
   try {
-    console.log('Loading Marathon GeoJSON from:', GEOJSON_URL);
+    console.log('Loading marathon data from:', GEOJSON_URL);
     const response = await fetch(`${GEOJSON_URL}?t=${Date.now()}`);
     
     if (!response.ok) {
@@ -355,19 +318,17 @@ async function loadGeoJSONData(){
     }
     
     const geojsonData = await response.json();
-    console.log('Marathon GeoJSON loaded successfully:', geojsonData);
+    console.log('GeoJSON data loaded successfully:', geojsonData);
     
-    // Process each feature as marathon data
+    // Process each feature
     geojsonData.features.forEach(feature => {
       const props = feature.properties;
       const coords = feature.geometry.coordinates;
       
-      // All features should be marathons
       drawMarathon(props, coords);
     });
     
     console.log('Total marathon markers created:', markers.length);
-    // Initialize marker scaling
     updateMarkerSizes();
     
   } catch (error) {
@@ -455,19 +416,18 @@ function drawMarathon(props, coords){
   }
 
   // Create popup content
-  let popupContent = `<div><strong>${marathonName}</strong><hr class="sep">`;
-  if (city) popupContent += `<b>City:</b> ${city}<br>`;
-  if (country) popupContent += `<b>Country:</b> ${country}<br>`;
-  if (year) popupContent += `<b>Year:</b> ${year}<br>`;
-  if (marathonType) popupContent += `<b>Type:</b> ${marathonType}<br>`;
-  if (date) popupContent += `<b>Date:</b> ${date}<br>`;
-  if (availability) popupContent += `<b>Availability:</b> ${availability}<br>`;
-  if (status) popupContent += `<b>Status:</b> ${status}<br>`;
-  if (landingPage) popupContent += `<hr class="sep"><a href="${landingPage}" target="_blank">More Info</a>`;
-  popupContent += `</div>`;
+  const pop = `<div><strong>${marathonName}</strong><hr class="sep">
+      <b>City:</b> ${city}<br>
+      <b>Country:</b> ${country}<br>
+      <b>Type:</b> ${marathonType}<br>
+      <b>Date:</b> ${date}<br>
+      <b>Year:</b> ${year}<br>
+      <b>Availability:</b> ${availability}<br>
+      <b>Status:</b> ${status}${landingPage ? `<br><a href="${landingPage}" target="_blank" class="popup-btn">View Details</a>` : ''}
+    </div>`;
 
   const m = new mapboxgl.Marker(el).setLngLat([lon,lat])
-           .setPopup(new mapboxgl.Popup({offset:25}).setHTML(popupContent))
+           .setPopup(new mapboxgl.Popup({offset:25}).setHTML(pop))
            .addTo(map);
 
   // Add hover functionality
