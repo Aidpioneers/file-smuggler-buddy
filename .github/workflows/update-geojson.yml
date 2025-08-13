@@ -1,0 +1,54 @@
+name: Update Marathon GeoJSON
+
+on:
+  # Run daily at 6 AM UTC
+  schedule:
+    - cron: '0 6 * * *'
+  
+  # Allow manual triggering
+  workflow_dispatch:
+  
+  # Run when marathons.ts is updated
+  push:
+    paths:
+      - 'src/data/marathons.ts'
+
+jobs:
+  update-geojson:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Convert to GeoJSON
+        run: node scripts/convert-to-geojson.js
+        
+      - name: Check for changes
+        id: verify-changed-files
+        run: |
+          if git diff --quiet public/marathons.geojson; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Commit and push changes
+        if: steps.verify-changed-files.outputs.changed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add public/marathons.geojson
+          git commit -m "🗺️ Auto-update marathon GeoJSON data"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: No changes detected
+        if: steps.verify-changed-files.outputs.changed == 'false'
+        run: echo "No changes to marathon data detected"
