@@ -12,7 +12,7 @@ try {
   const tsContent = fs.readFileSync(marathonFilePath, 'utf8');
   
   // Extract the JSON data from the TypeScript export
-  const jsonMatch = tsContent.match(/marathonData = ({[\s\S]*?}) as const;/);
+  const jsonMatch = tsContent.match(/export const marathonData = ({[\s\S]*?}) as const;/);
   
   if (!jsonMatch) {
     throw new Error('Could not find marathonData in TypeScript file');
